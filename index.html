@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QR Code Reader</title>
+    <meta name="description" content="QR Code Reader" />
+    <script src="./jsQR.js"></script>
+  </head>
+  <body>
+    <div>
+      <div>
+        <video></video>
+        <div id="overlay" style="position: absolute; border: 1px solid #F00;"></div>
+      </div>
+    </div>
+    <div id="result" style="min-height: 20px;"></div>
+
+    <script>
+      const constraints = {
+        audio: false,
+        video: {
+          facingMode: 'environment',
+          width: 500,
+          height: 500,
+      }};
+      const resList = []
+
+      const drawRect = (topLeft, bottomRight) => {
+        const { x: x1, y: y1 } = topLeft;
+        const { x: x2, y: y2 }= bottomRight;
+
+        const overlay = document.querySelector('#overlay');
+        overlay.style.left = `${x1}px`;
+        overlay.style.top =`${y1}px`;
+        overlay.style.width = `${x2 - x1}px`;
+        overlay.style.height =`${y2 - y1}px`;
+      };
+
+      (async() => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia(constraints);
+          const video = document.querySelector('video');
+          video.srcObject = stream;
+          video.play();
+
+          const { width, height } = constraints.video;
+          const canvas = new OffscreenCanvas(width, height);
+          const context = canvas.getContext('2d');
+
+          const timer = setInterval(() => {
+              context.drawImage(video, 0, 0, width, height);
+              const imageData = context.getImageData(0, 0, width, height);
+              const code = jsQR(imageData.data, imageData.width, imageData.height);
+              if (code) {
+                // document.querySelector('#result').textContent = code.data;
+                resList.push(code.data);
+                drawRect(code.location.topLeftCorner, code.location.bottomRightCorner);
+              } else {
+                document.querySelector('#result').innerHTML = '';
+              }
+              var rText = "";
+              [...resList].reverse().forEach((item, index) => {
+                if (index === 0) {
+                  // 1つ目の要素に特別な処理をする
+                  rText += `<span style="color:white;margin-bottom:5px;">${item}</span><br />`;
+                } else {
+                  rText += (item + "<br />")
+                }
+              });
+              console.log(resList);
+              document.querySelector('#result').innerHTML = rText;
+            }, 300);
+        } catch(error) {
+          console.log('load error', error);
+        }
+      })();
+    </script>
+    <style>
+      html {
+        background-color: black;
+        color: rgb(85, 85, 85);
+        text-align: center;
+        overflow: visible;
+      }
+      div {
+        margin: 0 auto;
+      }
+    </style>
+  </body>
+</html>
